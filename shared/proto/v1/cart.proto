@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package cart;
+
+option go_package = "shared/proto/v1/cart;cart";
+
+service CartService {
+  rpc GetCart(GetCartRequest) returns (CartResponse);
+  rpc AddItem(AddItemRequest) returns (CartResponse);
+  rpc UpdateItem(UpdateItemRequest) returns (CartResponse);
+  rpc RemoveItem(RemoveItemRequest) returns (CartResponse);
+  rpc ClearCart(ClearCartRequest) returns (ClearCartResponse);
+}
+
+message GetCartRequest {
+  int64 user_id = 1;
+}
+
+message AddItemRequest {
+  int64 user_id = 1;
+  int64 product_id = 2;
+  int32 quantity = 3;
+}
+
+message UpdateItemRequest {
+  int64 user_id = 1;
+  int64 product_id = 2;
+  int32 quantity = 3;
+}
+
+message RemoveItemRequest {
+  int64 user_id = 1;
+  int64 product_id = 2;
+}
+
+message ClearCartRequest {
+  int64 user_id = 1;
+}
+
+message ClearCartResponse {
+  bool success = 1;
+}
+
+message CartItem {
+  int64 product_id = 1;
+  int32 quantity = 2;
+}
+
+message CartResponse {
+  int64 user_id = 1;
+  repeated CartItem items = 2;
+  int32 total_quantity = 3;
+}

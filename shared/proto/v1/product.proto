@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+package product;
+
+option go_package = "shared/proto/v1/product;product";
+
+// ProductService provides operations for managing products.
+service ProductService {
+    //creates new product
+  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
+  //retrieve product by id
+  rpc GetProductByID(GetProductByIDRequest) returns (GetProductByIDResponse);
+  //lists product with pagination
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+  //updates product
+  rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductResponse);
+  //delete specific product
+  rpc DeleteProduct(DeleteProductRequest) returns (DeleteProductResponse);
+  //creates new category
+  rpc CreateCategory(CreateCategoryRequest) returns (CreateCategoryResponse);
+  //retrieve category by id
+  rpc GetCategoryByID(GetCategoryByIDRequest) returns (GetCategoryByIDResponse);
+  //lists category with pagination
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+  //updates category
+  rpc UpdateCategory(UpdateCategoryRequest) returns (UpdateCategoryResponse);
+  //delete specific category
+  rpc DeleteCategory(DeleteCategoryRequest) returns (DeleteCategoryResponse);
+}
+
+enum DiscountType {
+  DISCOUNT_NONE    = 0;
+  DISCOUNT_PERCENT = 1;
+  DISCOUNT_FIXED   = 2;
+}
+
+message CreateProductRequest {
+  string       name              = 1;
+  string       short_description = 2;
+  string       description       = 3;
+  float        price             = 4;
+  DiscountType discount_type     = 5;
+  float        discount_value    = 6;
+  string       image_url         = 7;
+  int32        quantity          = 8;
+}
+
+message CreateProductResponse {
+  Product product = 1;
+}
+
+message GetProductByIDRequest {
+  int64 id = 1;
+}
+
+message GetProductByIDResponse {
+  Product product = 1;
+}
+
+message ListProductsRequest {
+  int32 page     = 1;
+  int32 per_page = 2;
+}
+
+message ListProductsResponse {
+  repeated Product products    = 1;
+  int32            total_count = 2;
+}
+
+message UpdateProductRequest {
+  int32        id                = 1;
+  string       name              = 2;
+  string       short_description = 3;
+  string       description       = 4;
+  float        price             = 5;
+  DiscountType discount_type     = 6;
+  float        discount_value    = 7;
+  string       image_url         = 8;
+  int32        quantity          = 9;
+}
+
+message UpdateProductResponse {
+  Product product = 1;
+}
+
+message DeleteProductRequest {
+  int64 id = 1;
+}
+
+message DeleteProductResponse {
+  bool success = 1;
+}
+
+message Product{
+  int32  id                = 1;
+  string name              = 2;
+  string short_description = 3;
+  string description       = 4;
+  float  price             = 5;
+  string discount_type     = 6;
+  float  discount_value    = 7;
+  string image_url         = 8;
+  int32  quantity          = 9;
+}
+
+message CreateCategoryRequest {
+  string name        = 1;
+  string description = 2;
+}
+
+message CreateCategoryResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+message GetCategoryByIDRequest {
+  int64 id = 1;
+}
+
+message GetCategoryByIDResponse {
+  Category category = 1;
+}
+
+message ListCategoriesRequest {
+  int32 page     = 1;
+  int32 per_page = 2;
+}
+
+message ListCategoriesResponse {
+  repeated Category categories  = 1;
+  int32             total_count = 2;
+}
+
+message UpdateCategoryRequest {
+  int32  id          = 1;
+  string name        = 2;
+  string description = 3;
+}
+
+message UpdateCategoryResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+message DeleteCategoryRequest {
+  int64 id = 1;
+}
+
+message DeleteCategoryResponse {
+  bool success = 1;
+}
+
+message Category {
+  int32  id          = 1;
+  string name        = 2;
+  string description = 3;
+}

@@ -1,0 +1,39 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go build artifacts
+*.test
+*.out
+*.prof
+*.cover
+
+# Logs
+*.log
+logs/
+
+# Temp directories
+/tmp/
+services/*/tmp/
+
+# Env files
+.env
+services/*/config/.env
+
+# IDE/editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Other
+coverage/
+bin/
+dist/
+
+
+/vendor

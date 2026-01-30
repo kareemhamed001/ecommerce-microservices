@@ -1,0 +1,47 @@
+name: productservice
+
+services:
+  app:
+    build:
+      context: ../../..
+      dockerfile: ./services/ProductService/docker/Dockerfile.dev
+    ports:
+      - "8084:8080"
+      - "50053:50053"
+
+    volumes:
+      - ../../..:/app
+      - /app/tmp
+    depends_on:
+      - db
+    networks:
+      product_service_network:
+      ecommerce_default:
+        aliases:
+          - productservice_app
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: products
+    ports:
+      - "5441:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 5
+    networks:
+      - product_service_network
+
+volumes:
+  db_data:
+
+networks:
+  product_service_network:
+    driver: bridge
+  ecommerce_default:
+    external: true

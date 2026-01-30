@@ -1,0 +1,47 @@
+name: userservice
+
+services:
+  app:
+    build:
+      context: ../../..
+      dockerfile: ./services/UserService/docker/Dockerfile.dev
+    ports:
+      - "8082:8080"
+      - "50051:50051"
+
+    volumes:
+      - ../../..:/app
+      - /app/tmp
+    depends_on:
+      - db
+    networks:
+      user_service_network:
+      ecommerce_default:
+        aliases:
+          - userservice_app
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ecommerce
+    ports:
+      - "5439:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 5
+    networks:
+      - user_service_network
+
+volumes:
+  db_data:
+
+networks:
+  user_service_network:
+    driver: bridge
+  ecommerce_default:
+    external: true

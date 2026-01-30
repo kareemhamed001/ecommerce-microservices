@@ -1,0 +1,45 @@
+name: orderservice
+
+services:
+  app:
+    build:
+      context: ../../..
+      dockerfile: ./services/OrderService/docker/Dockerfile.dev
+    ports:
+      - "8085:8080"
+      - "50055:50055"
+
+    volumes:
+      - ../../..:/app
+      - /app/tmp
+    depends_on:
+      - db
+    networks:
+      - order_service_network
+      - ecommerce_default
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: orders
+    ports:
+      - "5443:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 5
+    networks:
+      - order_service_network
+
+volumes:
+  db_data:
+
+networks:
+  order_service_network:
+    driver: bridge
+  ecommerce_default:
+    external: true

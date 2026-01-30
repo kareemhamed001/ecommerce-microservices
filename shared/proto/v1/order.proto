@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package order;
+
+option go_package = "shared/proto/v1/order;order";
+
+// OrderService provides operations for managing orders.
+service OrderService {
+  // Create a new order
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+  // Get order by id
+  rpc GetOrderByID(GetOrderByIDRequest) returns (GetOrderByIDResponse);
+  // List orders with pagination and optional user filter
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+  // Add item to order
+  rpc AddOrderItem(AddOrderItemRequest) returns (AddOrderItemResponse);
+  // Remove item from order
+  rpc RemoveOrderItem(RemoveOrderItemRequest) returns (RemoveOrderItemResponse);
+  // Update order status
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (UpdateOrderStatusResponse);
+}
+
+message OrderItemInput {
+  int64 product_id = 1;
+  int32 quantity = 2;
+}
+
+message CreateOrderRequest {
+  int64 user_id = 1;
+  float shipping_cost = 2;
+  int32 shipping_duration_days = 3;
+  float discount = 4;
+  repeated OrderItemInput items = 5;
+}
+
+message CreateOrderResponse {
+  Order order = 1;
+}
+
+message GetOrderByIDRequest {
+  int64 id = 1;
+}
+
+message GetOrderByIDResponse {
+  Order order = 1;
+}
+
+message ListOrdersRequest {
+  int32 page = 1;
+  int32 per_page = 2;
+  int64 user_id = 3;
+}
+
+message ListOrdersResponse {
+  repeated Order orders = 1;
+  int32 total_count = 2;
+}
+
+message AddOrderItemRequest {
+  int64 order_id = 1;
+  int64 product_id = 2;
+  int32 quantity = 3;
+}
+
+message AddOrderItemResponse {
+  Order order = 1;
+}
+
+message RemoveOrderItemRequest {
+  int64 order_id = 1;
+  int64 item_id = 2;
+}
+
+message RemoveOrderItemResponse {
+  Order order = 1;
+}
+
+message UpdateOrderStatusRequest {
+  int64 order_id = 1;
+  string status = 2;
+}
+
+message UpdateOrderStatusResponse {
+  Order order = 1;
+}
+
+message Order {
+  int64 id = 1;
+  int64 user_id = 2;
+  float shipping_cost = 3;
+  int32 shipping_duration_days = 4;
+  float discount = 5;
+  float total = 6;
+  string status = 7;
+  repeated OrderItem items = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message OrderItem {
+  int64 id = 1;
+  int64 order_id = 2;
+  int64 product_id = 3;
+  int32 quantity = 4;
+  float unit_price = 5;
+  float total_price = 6;
+}
