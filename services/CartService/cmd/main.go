@@ -51,10 +51,23 @@ func main() {
 		panic("failed to connect to redis")
 	}
 
-	productConn, err := grpc.Dial(
+	productConn, err := grpc.NewClient(
 		config.ProductServiceGRPCAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(grpcmiddleware.InternalAuthUnaryClientInterceptor(config.InternalAuthToken)),
+		grpc.WithChainUnaryInterceptor(
+			grpcmiddleware.InternalAuthUnaryClientInterceptor(config.InternalAuthToken),
+			grpcmiddleware.CircuitBreakerUnaryClientInterceptor(
+				"cart-service->"+config.ProductServiceGRPCAddr,
+				grpcmiddleware.CircuitBreakerConfig{
+					Enabled:      config.CircuitBreakerEnabled,
+					MaxRequests:  config.CircuitBreakerMaxRequests,
+					Interval:     config.CircuitBreakerInterval,
+					Timeout:      config.CircuitBreakerTimeout,
+					FailureRatio: config.CircuitBreakerFailureRatio,
+					MinRequests:  config.CircuitBreakerMinRequests,
+				},
+			),
+		),
 	)
 	if err != nil {
 		close(done)
@@ -64,10 +77,23 @@ func main() {
 		_ = productConn.Close()
 	}()
 
-	userConn, err := grpc.Dial(
+	userConn, err := grpc.NewClient(
 		config.UserServiceGRPCAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(grpcmiddleware.InternalAuthUnaryClientInterceptor(config.InternalAuthToken)),
+		grpc.WithChainUnaryInterceptor(
+			grpcmiddleware.InternalAuthUnaryClientInterceptor(config.InternalAuthToken),
+			grpcmiddleware.CircuitBreakerUnaryClientInterceptor(
+				"cart-service->"+config.UserServiceGRPCAddr,
+				grpcmiddleware.CircuitBreakerConfig{
+					Enabled:      config.CircuitBreakerEnabled,
+					MaxRequests:  config.CircuitBreakerMaxRequests,
+					Interval:     config.CircuitBreakerInterval,
+					Timeout:      config.CircuitBreakerTimeout,
+					FailureRatio: config.CircuitBreakerFailureRatio,
+					MinRequests:  config.CircuitBreakerMinRequests,
+				},
+			),
+		),
 	)
 	if err != nil {
 		close(done)

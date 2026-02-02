@@ -32,7 +32,7 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order *domain.Order) 
 		if err := gorm.G[domain.Order](tx).Create(ctx, order); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			return err
+			return mapPostgresError(err)
 		}
 
 		if len(order.Items) > 0 {
@@ -42,7 +42,7 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order *domain.Order) 
 				if err := tx.WithContext(ctx).Omit("id").Create(&order.Items[i]).Error; err != nil {
 					span.RecordError(err)
 					span.SetStatus(codes.Error, err.Error())
-					return err
+					return mapPostgresError(err)
 				}
 			}
 		}
@@ -67,7 +67,7 @@ func (r *OrderRepository) GetOrderByID(ctx context.Context, id uint) (*domain.Or
 		}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, err
+		return nil, mapPostgresError(err)
 	}
 
 	span.SetStatus(codes.Ok, "order retrieved")
@@ -87,14 +87,14 @@ func (r *OrderRepository) ListOrders(ctx context.Context, userID *uint, page, pe
 	if err := query.Count(&total).Error; err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, 0, err
+		return nil, 0, mapPostgresError(err)
 	}
 
 	var orders []domain.Order
 	if err := query.Preload("Items").Offset((page - 1) * perPage).Limit(perPage).Order("id desc").Find(&orders).Error; err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, 0, err
+		return nil, 0, mapPostgresError(err)
 	}
 
 	span.SetAttributes(attribute.Int("orders.count", len(orders)))
@@ -110,7 +110,7 @@ func (r *OrderRepository) AddOrderItem(ctx context.Context, item *domain.OrderIt
 	if err := r.db.WithContext(ctx).Omit("id").Create(item).Error; err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return err
+		return mapPostgresError(err)
 	}
 
 	span.SetStatus(codes.Ok, "order item created")
@@ -125,7 +125,7 @@ func (r *OrderRepository) RemoveOrderItem(ctx context.Context, orderID, itemID u
 	if result.Error != nil {
 		span.RecordError(result.Error)
 		span.SetStatus(codes.Error, result.Error.Error())
-		return result.Error
+		return mapPostgresError(result.Error)
 	}
 	if result.RowsAffected == 0 {
 		span.SetStatus(codes.Error, repository.ErrOrderItemNotFound.Error())
@@ -144,7 +144,7 @@ func (r *OrderRepository) UpdateOrderStatus(ctx context.Context, orderID uint, s
 	if result.Error != nil {
 		span.RecordError(result.Error)
 		span.SetStatus(codes.Error, result.Error.Error())
-		return result.Error
+		return mapPostgresError(result.Error)
 	}
 	if result.RowsAffected == 0 {
 		span.SetStatus(codes.Error, repository.ErrOrderNotFound.Error())
@@ -163,7 +163,7 @@ func (r *OrderRepository) UpdateOrderTotal(ctx context.Context, orderID uint, to
 	if result.Error != nil {
 		span.RecordError(result.Error)
 		span.SetStatus(codes.Error, result.Error.Error())
-		return result.Error
+		return mapPostgresError(result.Error)
 	}
 	if result.RowsAffected == 0 {
 		span.SetStatus(codes.Error, repository.ErrOrderNotFound.Error())

@@ -5,15 +5,12 @@ import (
 	"errors"
 
 	"github.com/kareemhamed001/e-commerce/services/ProductService/internal/domain"
+	"github.com/kareemhamed001/e-commerce/services/ProductService/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrProductNotFound = errors.New("Product not found")
 )
 
 type ProductRepository struct {
@@ -43,7 +40,7 @@ func (r *ProductRepository) CreateProduct(ctx context.Context, product *domain.P
 	if err := gorm.G[domain.Product](r.db).Create(ctx, product); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return err
+		return mapPostgresError(err)
 	}
 
 	span.SetAttributes(attribute.Int("product.id", int(product.ID)))
@@ -60,12 +57,12 @@ func (r *ProductRepository) GetProductByID(ctx context.Context, id uint) (*domai
 	product, err := gorm.G[domain.Product](r.db).Where("id = ?", id).First(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			span.SetStatus(codes.Error, ErrProductNotFound.Error())
-			return nil, ErrProductNotFound
+			span.SetStatus(codes.Error, repository.ErrProductNotFound.Error())
+			return nil, repository.ErrProductNotFound
 		}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, err
+		return nil, mapPostgresError(err)
 	}
 
 	span.SetAttributes(attribute.String("product.name", product.Name))
@@ -82,7 +79,7 @@ func (r *ProductRepository) GetProductsByIDs(ctx context.Context, ids []uint) ([
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, err
+		return nil, mapPostgresError(err)
 	}
 
 	span.SetAttributes(attribute.Int("products.count", len(products)))
@@ -102,11 +99,11 @@ func (r *ProductRepository) UpdateProduct(ctx context.Context, id uint, product 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return err
+		return mapPostgresError(err)
 	}
 	if rowsAffected == 0 {
-		span.SetStatus(codes.Error, ErrProductNotFound.Error())
-		return ErrProductNotFound
+		span.SetStatus(codes.Error, repository.ErrProductNotFound.Error())
+		return repository.ErrProductNotFound
 	}
 
 	span.SetStatus(codes.Ok, "product updated")
@@ -126,14 +123,14 @@ func (r *ProductRepository) ListProducts(ctx context.Context, page, perPage int)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, 0, err
+		return nil, 0, mapPostgresError(err)
 	}
 
 	totalCount, err := gorm.G[domain.Product](r.db).Count(ctx, "*")
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, 0, err
+		return nil, 0, mapPostgresError(err)
 	}
 
 	span.SetAttributes(attribute.Int("products.count", len(products)))
@@ -151,11 +148,11 @@ func (r *ProductRepository) DeleteProduct(ctx context.Context, id uint) error {
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return err
+		return mapPostgresError(err)
 	}
 	if rowsAffected == 0 {
-		span.SetStatus(codes.Error, ErrProductNotFound.Error())
-		return ErrProductNotFound
+		span.SetStatus(codes.Error, repository.ErrProductNotFound.Error())
+		return repository.ErrProductNotFound
 	}
 
 	span.SetStatus(codes.Ok, "product deleted")

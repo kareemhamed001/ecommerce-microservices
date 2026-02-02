@@ -56,7 +56,7 @@ func main() {
 	useRepo := postgresql.NewUserRepository(db)
 	addressRepo := postgresql.NewAddressRepository(db)
 	userUseCase := usecase.NewUserUsecase(useRepo)
-	addressUsecase := usecase.NewAddressUsecase(addressRepo)
+	addressUsecase := usecase.NewAddressUsecase(addressRepo, useRepo)
 
 	validate := validator.New()
 	jwtManager := jwt.NewJWTManager(config.JWTSecret, time.Duration(config.JWTDuration)*time.Hour)

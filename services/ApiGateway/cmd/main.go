@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kareemhamed001/e-commerce/pkg/grpcmiddleware"
 	"github.com/kareemhamed001/e-commerce/pkg/logger"
 	"github.com/kareemhamed001/e-commerce/services/ApiGateway/config"
 	"github.com/kareemhamed001/e-commerce/services/ApiGateway/internal/clients"
@@ -44,6 +45,14 @@ func main() {
 		cfg.CartServiceURL,
 		cfg.OrderServiceURL,
 		cfg.InternalAuthToken,
+		grpcmiddleware.CircuitBreakerConfig{
+			Enabled:      cfg.CircuitBreakerEnabled,
+			MaxRequests:  cfg.CircuitBreakerMaxRequests,
+			Interval:     cfg.CircuitBreakerInterval,
+			Timeout:      cfg.CircuitBreakerTimeout,
+			FailureRatio: cfg.CircuitBreakerFailureRatio,
+			MinRequests:  cfg.CircuitBreakerMinRequests,
+		},
 	)
 	if err != nil {
 		logger.Errorf("Failed to initialize service clients: %v", err)

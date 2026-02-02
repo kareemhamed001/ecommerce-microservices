@@ -2,8 +2,10 @@ package postgresql
 
 import (
 	"context"
+	"errors"
 
 	"github.com/kareemhamed001/e-commerce/services/UserService/internal/domain"
+	"github.com/kareemhamed001/e-commerce/services/UserService/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
@@ -27,7 +29,7 @@ func (r *AddressRepository) CreateAddress(ctx context.Context, address *domain.A
 
 	err := gorm.G[domain.Address](r.db).Create(ctx, address)
 	if err != nil {
-		return domain.Address{}, err
+		return domain.Address{}, mapPostgresError(err)
 	}
 	return *address, nil
 }
@@ -41,7 +43,10 @@ func (r *AddressRepository) GetAddressByID(ctx context.Context, id uint) (domain
 		Where("id = ?", id).
 		First(ctx)
 	if err != nil {
-		return domain.Address{}, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.Address{}, repository.ErrAddressNotFound
+		}
+		return domain.Address{}, mapPostgresError(err)
 	}
 	return address, nil
 }
@@ -57,7 +62,7 @@ func (r *AddressRepository) ListAddressesByUserID(ctx context.Context, userID ui
 		Offset(offset).
 		Find(ctx)
 	if err != nil {
-		return nil, err
+		return nil, mapPostgresError(err)
 	}
 	return addresses, nil
 }
@@ -71,10 +76,10 @@ func (r *AddressRepository) UpdateAddress(ctx context.Context, id uint, address 
 		Where("id = ?", id).
 		Updates(ctx, address)
 	if err != nil {
-		return domain.Address{}, err
+		return domain.Address{}, mapPostgresError(err)
 	}
 	if rowsAffected == 0 {
-		return domain.Address{}, gorm.ErrRecordNotFound
+		return domain.Address{}, repository.ErrAddressNotFound
 	}
 	return address, nil
 }
@@ -87,10 +92,10 @@ func (r *AddressRepository) DeleteAddress(ctx context.Context, id uint) error {
 		Where("id = ?", id).
 		Delete(ctx)
 	if err != nil {
-		return err
+		return mapPostgresError(err)
 	}
 	if rowsAffected == 0 {
-		return gorm.ErrRecordNotFound
+		return repository.ErrAddressNotFound
 	}
 	return nil
 }

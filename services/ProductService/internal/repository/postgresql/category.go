@@ -2,8 +2,10 @@ package postgresql
 
 import (
 	"context"
+	"errors"
 
 	"github.com/kareemhamed001/e-commerce/services/ProductService/internal/domain"
+	"github.com/kareemhamed001/e-commerce/services/ProductService/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -32,7 +34,7 @@ func (r *CategoryRepository) CreateCategory(ctx context.Context, category *domai
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create category")
-		return err
+		return mapPostgresError(err)
 	}
 
 	span.SetStatus(codes.Ok, "category created successfully")
@@ -48,9 +50,14 @@ func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id uint) (*dom
 		First(ctx)
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "category not found")
+			return nil, repository.ErrCategoryNotFound
+		}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get category by ID")
-		return nil, err
+		return nil, mapPostgresError(err)
 	}
 
 	span.SetStatus(codes.Ok, "category retrieved successfully")
@@ -68,10 +75,10 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, id uint, catego
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to update category")
-		return err
+		return mapPostgresError(err)
 	}
 	if rowsAffected == 0 {
-		err := gorm.ErrRecordNotFound
+		err := repository.ErrCategoryNotFound
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "category not found")
 		return err
@@ -93,7 +100,7 @@ func (r *CategoryRepository) ListCategories(ctx context.Context, page, perPage i
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to list categories")
-		return nil, 0, err
+		return nil, 0, mapPostgresError(err)
 	}
 
 	total, err := gorm.G[domain.Category](r.db).
@@ -102,7 +109,7 @@ func (r *CategoryRepository) ListCategories(ctx context.Context, page, perPage i
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to count categories")
-		return nil, 0, err
+		return nil, 0, mapPostgresError(err)
 	}
 
 	span.SetStatus(codes.Ok, "categories listed successfully")
@@ -118,10 +125,10 @@ func (r *CategoryRepository) DeleteCategory(ctx context.Context, id uint) error 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to delete category")
-		return err
+		return mapPostgresError(err)
 	}
 	if rowsAffected == 0 {
-		err := gorm.ErrRecordNotFound
+		err := repository.ErrCategoryNotFound
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "category not found")
 		return err

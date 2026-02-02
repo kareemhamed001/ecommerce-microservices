@@ -37,6 +37,14 @@ type Config struct {
 
 	// Timeouts
 	DownstreamTimeout time.Duration
+
+	// Circuit breaker
+	CircuitBreakerEnabled      bool
+	CircuitBreakerMaxRequests  uint32
+	CircuitBreakerInterval     time.Duration
+	CircuitBreakerTimeout      time.Duration
+	CircuitBreakerFailureRatio float64
+	CircuitBreakerMinRequests  uint32
 }
 
 func Load() (*Config, error) {
@@ -78,6 +86,13 @@ func Load() (*Config, error) {
 		DownstreamTimeout: time.Duration(getEnvInt("DOWNSTREAM_TIMEOUT_SECONDS", 3)) * time.Second,
 
 		InternalAuthToken: GetEnv("INTERNAL_AUTH_TOKEN", ""),
+
+		CircuitBreakerEnabled:      getEnvBool("CB_ENABLED", true),
+		CircuitBreakerMaxRequests:  uint32(getEnvInt("CB_MAX_REQUESTS", 5)),
+		CircuitBreakerInterval:     time.Duration(getEnvInt("CB_INTERVAL_SECONDS", 60)) * time.Second,
+		CircuitBreakerTimeout:      time.Duration(getEnvInt("CB_TIMEOUT_SECONDS", 20)) * time.Second,
+		CircuitBreakerFailureRatio: getEnvFloat("CB_FAILURE_RATIO", 0.6),
+		CircuitBreakerMinRequests:  uint32(getEnvInt("CB_MIN_REQUESTS", 20)),
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -137,6 +152,18 @@ func getEnvInt(key string, fallback int) int {
 func getEnvBool(key string, fallback bool) bool {
 	if value, ok := os.LookupEnv(key); ok {
 		return value == "true" || value == "1" || value == "yes"
+	}
+	return fallback
+}
+
+func getEnvFloat(key string, fallback float64) float64 {
+	if value, ok := os.LookupEnv(key); ok {
+		var floatVal float64
+		_, err := fmt.Sscanf(value, "%f", &floatVal)
+		if err != nil {
+			return fallback
+		}
+		return floatVal
 	}
 	return fallback
 }

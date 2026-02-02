@@ -44,6 +44,14 @@ type Config struct {
 
 	// Internal service auth
 	InternalAuthToken string
+
+	// Circuit breaker
+	CircuitBreakerEnabled      bool
+	CircuitBreakerMaxRequests  uint32
+	CircuitBreakerInterval     time.Duration
+	CircuitBreakerTimeout      time.Duration
+	CircuitBreakerFailureRatio float64
+	CircuitBreakerMinRequests  uint32
 }
 
 func Load() (*Config, error) {
@@ -101,6 +109,14 @@ func Load() (*Config, error) {
 
 		// Internal service auth
 		InternalAuthToken: GetEnv("INTERNAL_AUTH_TOKEN", ""),
+
+		// Circuit breaker
+		CircuitBreakerEnabled:      getEnvBool("CB_ENABLED", true),
+		CircuitBreakerMaxRequests:  uint32(getEnvInt("CB_MAX_REQUESTS", 5)),
+		CircuitBreakerInterval:     time.Duration(getEnvInt("CB_INTERVAL_SECONDS", 60)) * time.Second,
+		CircuitBreakerTimeout:      time.Duration(getEnvInt("CB_TIMEOUT_SECONDS", 20)) * time.Second,
+		CircuitBreakerFailureRatio: getEnvFloat("CB_FAILURE_RATIO", 0.6),
+		CircuitBreakerMinRequests:  uint32(getEnvInt("CB_MIN_REQUESTS", 20)),
 	}
 
 	if cfg.InternalAuthToken == "" {
@@ -140,6 +156,21 @@ func getEnvBool(key string, defaultValue bool) bool {
 	}
 
 	return value == "true" || value == "1" || value == "yes"
+}
+
+func getEnvFloat(key string, defaultValue float64) float64 {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	var floatValue float64
+	_, err := fmt.Sscanf(value, "%f", &floatValue)
+	if err != nil {
+		return defaultValue
+	}
+
+	return floatValue
 }
 
 func getEnvArray(key string, defaultValue []string) []string {

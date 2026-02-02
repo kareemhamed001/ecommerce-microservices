@@ -60,7 +60,20 @@ func main() {
 	productConn, err := grpc.NewClient(
 		config.ProductServiceGRPCAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(grpcmiddleware.InternalAuthUnaryClientInterceptor(config.InternalAuthToken)),
+		grpc.WithChainUnaryInterceptor(
+			grpcmiddleware.InternalAuthUnaryClientInterceptor(config.InternalAuthToken),
+			grpcmiddleware.CircuitBreakerUnaryClientInterceptor(
+				"order-service->"+config.ProductServiceGRPCAddr,
+				grpcmiddleware.CircuitBreakerConfig{
+					Enabled:      config.CircuitBreakerEnabled,
+					MaxRequests:  config.CircuitBreakerMaxRequests,
+					Interval:     config.CircuitBreakerInterval,
+					Timeout:      config.CircuitBreakerTimeout,
+					FailureRatio: config.CircuitBreakerFailureRatio,
+					MinRequests:  config.CircuitBreakerMinRequests,
+				},
+			),
+		),
 	)
 	if err != nil {
 		close(done)
@@ -73,7 +86,20 @@ func main() {
 	userConn, err := grpc.Dial(
 		config.UserServiceGRPCAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(grpcmiddleware.InternalAuthUnaryClientInterceptor(config.InternalAuthToken)),
+		grpc.WithChainUnaryInterceptor(
+			grpcmiddleware.InternalAuthUnaryClientInterceptor(config.InternalAuthToken),
+			grpcmiddleware.CircuitBreakerUnaryClientInterceptor(
+				"order-service->"+config.UserServiceGRPCAddr,
+				grpcmiddleware.CircuitBreakerConfig{
+					Enabled:      config.CircuitBreakerEnabled,
+					MaxRequests:  config.CircuitBreakerMaxRequests,
+					Interval:     config.CircuitBreakerInterval,
+					Timeout:      config.CircuitBreakerTimeout,
+					FailureRatio: config.CircuitBreakerFailureRatio,
+					MinRequests:  config.CircuitBreakerMinRequests,
+				},
+			),
+		),
 	)
 	if err != nil {
 		close(done)

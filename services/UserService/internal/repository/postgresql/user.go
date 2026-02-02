@@ -38,7 +38,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *domain.User) (dom
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return domain.User{}, repository.ErrUserAlreadyExists
 		}
-		return domain.User{}, err
+		return domain.User{}, mapPostgresError(err)
 	}
 	span.SetStatus(codes.Ok, "User created successfully")
 	span.AddEvent("User created", trace.WithAttributes(
@@ -54,22 +54,40 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uint) (domain.User,
 	user, err := gorm.G[domain.User](r.db).
 		Where("id = ?", id).
 		First(ctx)
-	return user, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.User{}, repository.ErrUserNotFound
+		}
+		return domain.User{}, mapPostgresError(err)
+	}
+	return user, nil
 }
 
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (domain.User, error) {
 	user, err := gorm.G[domain.User](r.db).Where("email = ?", email).First(ctx)
-	return user, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.User{}, repository.ErrUserNotFound
+		}
+		return domain.User{}, mapPostgresError(err)
+	}
+	return user, nil
 }
 
 func (r *UserRepository) ListUsers(ctx context.Context, limit, offset int) ([]domain.User, error) {
 	users, err := gorm.G[domain.User](r.db).Limit(limit).Offset(offset).Find(ctx)
-	return users, err
+	if err != nil {
+		return nil, mapPostgresError(err)
+	}
+	return users, nil
 }
 
 func (r *UserRepository) ListUsersByRole(ctx context.Context, role domain.UserRole, limit, offset int) ([]domain.User, error) {
 	users, err := gorm.G[domain.User](r.db).Where("role = ?", role).Limit(limit).Offset(offset).Find(ctx)
-	return users, err
+	if err != nil {
+		return nil, mapPostgresError(err)
+	}
+	return users, nil
 }
 
 func (r *UserRepository) SearchUsers(ctx context.Context, query string, limit, offset int) ([]domain.User, error) {
@@ -78,19 +96,22 @@ func (r *UserRepository) SearchUsers(ctx context.Context, query string, limit, o
 		Limit(limit).
 		Offset(offset).
 		Find(ctx)
-	return users, err
+	if err != nil {
+		return nil, mapPostgresError(err)
+	}
+	return users, nil
 }
 func (r *UserRepository) UpdateUser(ctx context.Context, id uint, user domain.User) (domain.User, error) {
 	rowsAffected, err := gorm.G[domain.User](r.db).
 		Where("id = ?", id).
 		Updates(ctx, user)
 	if err != nil {
-		return domain.User{}, err
+		return domain.User{}, mapPostgresError(err)
 	}
 	if rowsAffected == 0 {
-		return domain.User{}, gorm.ErrRecordNotFound
+		return domain.User{}, repository.ErrUserNotFound
 	}
-	return user, err
+	return user, nil
 }
 
 func (r *UserRepository) DeleteUser(ctx context.Context, id uint) error {
@@ -99,10 +120,10 @@ func (r *UserRepository) DeleteUser(ctx context.Context, id uint) error {
 		Delete(ctx)
 
 	if err != nil {
-		return err
+		return mapPostgresError(err)
 	}
 	if rowsAffected == 0 {
-		return gorm.ErrRecordNotFound
+		return repository.ErrUserNotFound
 	}
 	return nil
 }

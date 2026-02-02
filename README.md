@@ -1,164 +1,228 @@
-# Ecommerce Microservices Platform
+# 🛒 E-Commerce Microservices Platform
 
-A Go-based e-commerce platform built as a set of microservices with an API Gateway, shared infrastructure packages, and service-specific domains. The system is designed for modularity, scalability, and independent deployment of core business capabilities.
+A production-ready, scalable e-commerce platform built with Go, microservices architecture, and gRPC. This project demonstrates modern distributed systems patterns and best practices.
 
-## Table of Contents
+## 📋 Quick Start
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Services](#services)
-- [Shared Packages](#shared-packages)
-- [Service-to-Service Communication](#service-to-service-communication)
-- [Data & Infrastructure](#data--infrastructure)
-- [Repository Structure](#repository-structure)
-- [Configuration](#configuration)
-- [Local Development](#local-development)
-- [Kubernetes Deployment](#kubernetes-deployment)
-- [Security: Gateway-Only Access](#security-gateway-only-access)
-- [Operational Notes](#operational-notes)
-- [Documentation Index](#documentation-index)
+### Prerequisites
 
-## Overview
+- Go 1.25.3+
+- Docker & Docker Compose
+- PostgreSQL 16+
+- Redis 7+
 
-This repository contains a multi-service e-commerce system. Each service encapsulates a bounded context and exposes APIs through the API Gateway. Shared libraries provide common infrastructure (logging, tracing, JWT, Redis, database helpers).
+### Development Setup (Docker Compose)
 
-## Architecture
+```bash
+# Start all services
+make up
 
-- **API Gateway** handles client traffic, authentication, routing, and cross-cutting concerns.
-- **Domain Services** implement business capabilities (User, Product, Cart, Order).
-- **Shared Libraries** in [pkg](pkg) standardize infrastructure and utilities.
-- **Shared Proto** in [shared/proto](shared/proto) supports gRPC contracts.
+# View logs
+docker compose logs -f
 
-High-level flow:
+# Stop services
+make down
+```
 
-1. Client calls API Gateway
-2. Gateway validates/authenticates and routes to target service
-3. Services use shared packages for persistence, messaging, caching, and observability
+The API Gateway will be available at `http://localhost:8080`
 
-## Services
-
-- **ApiGateway**: Entry point for clients; routing, auth, and middleware.
-- **UserService**: User registration, authentication, profiles.
-- **ProductService**: Catalog, inventory, and product queries; caching support.
-- **CartService**: Shopping cart lifecycle and persistence.
-- **OrderService**: Order creation, status tracking, and payment workflow hooks.
-
-## Shared Packages
-
-Located in [pkg](pkg):
-
-- **db**: Database initialization and helpers
-- **jwt**: Token creation and validation
-- **logger**: Structured logging with GORM integration
-- **password**: Hashing and verification
-- **rabbitmq**: Messaging utilities
-- **redis**: Caching client helpers
-- **tracer**: Tracing and error instrumentation
-
-## Service-to-Service Communication
-
-- gRPC contracts are stored in [shared/proto](shared/proto).
-- The API Gateway routes external traffic to internal services.
-
-## Data & Infrastructure
-
-- **Databases**: Each service can own its data store.
-- **Caching**: Redis helpers for fast reads and session data.
-- **Tracing & Logging**: Shared tracing and logger packages.
-
-## Repository Structure
+### Project Structure
 
 ```
 .
-├─ pkg/                 # shared infrastructure packages
-├─ services/            # microservices
-│  ├─ ApiGateway/
-│  ├─ UserService/
-│  ├─ ProductService/
-│  ├─ CartService/
-│  └─ OrderService/
-├─ shared/              # shared protobuf definitions
-├─ docker-compose.yaml  # top-level orchestration
-└─ Makefile             # root build helpers
+├── services/                    # Microservices
+│   ├── ApiGateway/            # HTTP → gRPC gateway (Port 8080)
+│   ├── UserService/           # User & address (gRPC:50051)
+│   ├── ProductService/        # Products & categories (gRPC:50053)
+│   ├── CartService/           # Shopping cart (gRPC:50055)
+│   └── OrderService/          # Orders (gRPC:50057)
+├── pkg/                        # Shared packages
+│   ├── db/                    # Database initialization
+│   ├── jwt/                   # JWT authentication
+│   ├── logger/                # Structured logging
+│   ├── redis/                 # Redis client
+│   ├── tracer/                # OpenTelemetry
+│   └── grpcmiddleware/        # gRPC interceptors
+├── shared/                     # Protocol Buffers definitions
+└── docker-compose.yaml         # Local development
 ```
 
-## Configuration
+---
 
-Each service has its own config in:
+## 🏗️ System Architecture
 
-- [services/ApiGateway/config](services/ApiGateway/config)
-- [services/UserService/config](services/UserService/config)
-- [services/ProductService/config](services/ProductService/config)
-- [services/CartService/config](services/CartService/config)
-- [services/OrderService/config](services/OrderService/config)
+```
+Client (Web/Mobile)
+         │ HTTP (REST)
+         ↓
+    API Gateway (Gin, JWT, RBAC)
+         │
+    ┌────┴────┬────┬──────┬────────────┐
+    ↓         ↓    ↓      ↓            ↓
+  User      Product Cart  Order      Jaeger
+  Service   Service  Svc   Service    (Tracing)
+  (gRPC)    (gRPC)   (gRPC)(gRPC)
+    │         │      │      │
+    ↓         ↓      ↓      ↓
+  Postgres  Postgres Redis Postgres
+```
 
-Refer to each service’s README and config files for environment variables and defaults.
+---
 
-## Local Development
+## 🚀 Core Services
 
-- Use the root [docker-compose.yaml](docker-compose.yaml) to bring up infrastructure.
-- Each service includes its own Docker files under its [services/\*/docker](services) folder.
-- Service binaries are defined in [services/\*/cmd](services) and can be run independently.
+| Service             | Port  | Protocol | Database   | Purpose                        |
+| ------------------- | ----- | -------- | ---------- | ------------------------------ |
+| **API Gateway**     | 8080  | HTTP     | -          | REST entry point, JWT, routing |
+| **User Service**    | 50051 | gRPC     | PostgreSQL | Users, auth, addresses         |
+| **Product Service** | 50053 | gRPC     | PostgreSQL | Products, categories           |
+| **Cart Service**    | 50055 | gRPC     | Redis      | Shopping cart                  |
+| **Order Service**   | 50057 | gRPC     | PostgreSQL | Order processing               |
+| **Jaeger**          | 16686 | HTTP     | -          | Distributed tracing            |
 
-## Kubernetes Deployment
+---
 
-See [k8s/README.md](k8s/README.md) for production-oriented Kubernetes manifests and run steps.
+## 📚 API Endpoints
 
-## Security: Gateway-Only Access
+### Authentication
 
-Production best practice is to combine **network isolation** with **service-to-service authentication**.
+```bash
+POST   /api/v1/users/register        # Register
+POST   /api/v1/users/login           # Login
+```
 
-### 1) Network isolation (primary control)
+### Users (Authenticated)
 
-Only the API Gateway is exposed to the host. Internal services and databases do not publish host ports.
+```bash
+GET    /api/v1/users/profile         # Get profile
+PUT    /api/v1/users/update          # Update profile
+GET    /api/v1/users/search          # Search (admin)
+DELETE /api/v1/users/delete          # Delete (admin)
+```
 
-Where this is enforced:
+### Addresses
 
-- [services/ApiGateway/docker/docker-compose.yml](services/ApiGateway/docker/docker-compose.yml)
-- [services/UserService/docker/docker-compose.yml](services/UserService/docker/docker-compose.yml)
-- [services/ProductService/docker/docker-compose.yml](services/ProductService/docker/docker-compose.yml)
-- [services/CartService/docker/docker-compose.yml](services/CartService/docker/docker-compose.yml)
-- [services/OrderService/docker/docker-compose.yml](services/OrderService/docker/docker-compose.yml)
+```bash
+POST   /api/v1/addresses/create      # Create
+GET    /api/v1/addresses/list        # List
+PUT    /api/v1/addresses/update      # Update
+DELETE /api/v1/addresses/delete      # Delete
+```
 
-### 2) Internal token auth (defense in depth)
+### Products
 
-All gRPC servers require an internal token, and the API Gateway (and service-to-service clients) attach it to outbound calls.
+```bash
+GET    /api/v1/products              # List
+GET    /api/v1/products/by-id        # Get
+POST   /api/v1/products/create       # Create (admin)
+PUT    /api/v1/products/update       # Update (admin)
+DELETE /api/v1/products/delete       # Delete (admin)
+```
 
-Set the same token for all services and the gateway:
+### Categories
 
-- Environment variable: INTERNAL_AUTH_TOKEN
-- Configuration files:
-  - [services/ApiGateway/config/config.go](services/ApiGateway/config/config.go)
-  - [services/UserService/config/config.go](services/UserService/config/config.go)
-  - [services/ProductService/config/config.go](services/ProductService/config/config.go)
-  - [services/CartService/config/config.go](services/CartService/config/config.go)
-  - [services/OrderService/config/config.go](services/OrderService/config/config.go)
+```bash
+GET    /api/v1/categories            # List
+GET    /api/v1/categories/by-id      # Get
+POST   /api/v1/categories/create     # Create (admin)
+PUT    /api/v1/categories/update     # Update (admin)
+DELETE /api/v1/categories/delete     # Delete (admin)
+```
 
-Implementation details:
+### Cart
 
-- Server interceptor: [pkg/grpcmiddleware/internal_auth.go](pkg/grpcmiddleware/internal_auth.go)
-- Gateway client interceptor: [services/ApiGateway/internal/clients/grpc_clients.go](services/ApiGateway/internal/clients/grpc_clients.go)
+```bash
+GET    /api/v1/cart                  # Get
+POST   /api/v1/cart/items/add        # Add item
+PUT    /api/v1/cart/items/update     # Update qty
+DELETE /api/v1/cart/items/remove     # Remove
+DELETE /api/v1/cart/clear            # Clear
+```
 
-### 3) mTLS (recommended for production)
+### Orders
 
-For strong identity and encryption between services, use mTLS via a service mesh (e.g., Istio or Linkerd).
-This complements the internal token check and prevents traffic spoofing.
+```bash
+POST   /api/v1/orders/create         # Create
+GET    /api/v1/orders                # List
+GET    /api/v1/orders/by-id          # Get
+PATCH  /api/v1/orders/status         # Update (admin)
+```
 
-## Operational Notes
+---
 
-- Logs are stored under [logs](logs) when enabled.
-- Migrations exist under [services/\*/internal/migrations](services) where applicable.
-- Temporary artifacts are under [tmp](tmp) and [services/\*/tmp](services).
+## 🔒 Security
 
-## Documentation Index
+- ✅ **JWT Authentication**: Stateless, token-based
+- ✅ **RBAC**: Admin & Customer roles
+- ✅ **Internal Service Auth**: Secure gRPC
+- ✅ **Circuit Breakers**: Fault tolerance
+- ✅ **Error Abstraction**: No SQL leaks
+- ✅ **Graceful Shutdown**: Proper cleanup
 
-- [AUTHORIZATION_LAYER_GUIDE.md](AUTHORIZATION_LAYER_GUIDE.md)
-- [SERVICES_FLOW.md](SERVICES_FLOW.md)
-- [k8s/README.md](k8s/README.md)
-- API Gateway docs:
-  - [services/ApiGateway/README.md](services/ApiGateway/README.md)
-  - [services/ApiGateway/API_GATEWAY_GUIDE.md](services/ApiGateway/API_GATEWAY_GUIDE.md)
-  - [services/ApiGateway/GRACEFUL_SHUTDOWN_README.md](services/ApiGateway/GRACEFUL_SHUTDOWN_README.md)
-  - [services/ApiGateway/IMPLEMENTATION_SUMMARY.md](services/ApiGateway/IMPLEMENTATION_SUMMARY.md)
-- Order Service docs:
-  - [services/OrderService/README.md](services/OrderService/README.md)
+---
+
+## 🔍 Observability
+
+- **Tracing**: Jaeger UI at `http://localhost:16686`
+- **Logging**: Structured JSON with correlation IDs
+- **Health Checks**: `GET /health` and `/api/v1/health`
+
+---
+
+## 🛠️ Development Commands
+
+```bash
+# Start all services
+make up
+
+# Stop services
+make down
+
+# Generate gRPC code
+make proto
+
+# View logs
+docker compose logs -f
+
+# Health check
+curl http://localhost:8080/health
+```
+
+---
+
+## 📖 Service Documentation
+
+- [API Gateway](services/ApiGateway/README.md)
+- [User Service](services/UserService/README.md)
+- [Product Service](services/ProductService/README.md)
+- [Cart Service](services/CartService/README.md)
+- [Order Service](services/OrderService/README.md)
+
+---
+
+## 🚢 Deployment
+
+### Docker Compose
+
+```bash
+docker compose up --build
+```
+
+---
+
+## 📊 Key Technologies
+
+| Component     | Tech                   |
+| ------------- | ---------------------- |
+| Language      | Go 1.25.3              |
+| HTTP          | Gin                    |
+| gRPC          | Protocol Buffers v3    |
+| ORM           | GORM                   |
+| Databases     | PostgreSQL 16, Redis 7 |
+| Logging       | Zap                    |
+| Tracing       | OpenTelemetry + Jaeger |
+| Container     | Docker                 |
+
+---
+
+**For detailed information, see service-specific README files.**

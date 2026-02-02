@@ -13,14 +13,17 @@ import (
 
 type AddressUsecase struct {
 	addressRepo domain.AddressRepositoryInterface
+	userRepo    domain.UserRepositoryInterface
 	tracer      trace.Tracer
 }
 
 var _ domain.AddressUsecaseInterface = (*AddressUsecase)(nil)
 
-func NewAddressUsecase(addressRepo domain.AddressRepositoryInterface) domain.AddressUsecaseInterface {
+func NewAddressUsecase(addressRepo domain.AddressRepositoryInterface, userRepo domain.UserRepositoryInterface) domain.AddressUsecaseInterface {
 	return &AddressUsecase{
+
 		addressRepo: addressRepo,
+		userRepo:    userRepo,
 		tracer:      otel.Tracer("address_usecase"),
 	}
 }
@@ -34,6 +37,26 @@ func (a *AddressUsecase) CreateAddress(ctx context.Context, req *dto.CreateAddre
 		attribute.String("country", req.Country),
 		attribute.String("city", req.City),
 	)
+
+	userExistsCtx, userExistsSpan := a.tracer.Start(ctx, "userRepo.UserExists")
+	existedUser, err := a.userRepo.GetUserByID(userExistsCtx, uint(req.UserID))
+	if err != nil {
+		userExistsSpan.RecordError(err)
+		userExistsSpan.SetStatus(codes.Error, err.Error())
+		userExistsSpan.End()
+
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return 0, err
+	}
+	userExistsSpan.End()
+
+	if existedUser.ID == 0 {
+		err := domain.ErrUserNotFound
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return 0, err
+	}
 
 	createAddressCtx, createAddressSpan := a.tracer.Start(ctx, "addressRepo.CreateAddress")
 

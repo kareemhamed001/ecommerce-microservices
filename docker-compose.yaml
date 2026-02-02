@@ -16,3 +16,190 @@ services:
     environment:
       - COLLECTOR_ZIPKIN_HOST_PORT=:9411
       - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - ecommerce_default
+
+  userservice-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ecommerce
+    volumes:
+      - userservice_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - ecommerce_default
+
+  userservice:
+    build:
+      context: .
+      dockerfile: services/UserService/docker/Dockerfile.dev
+    volumes:
+      - .:/app
+      - /app/tmp
+    environment:
+      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-dev-internal-token}
+      - DB_DSN=postgres://postgres:postgres@userservice-db:5432/ecommerce?sslmode=disable
+    depends_on:
+      userservice-db:
+        condition: service_healthy
+    networks:
+      ecommerce_default:
+        aliases:
+          - userservice_app
+
+  productservice-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: products
+    volumes:
+      - productservice_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d products"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - ecommerce_default
+
+  productservice:
+    build:
+      context: .
+      dockerfile: services/ProductService/docker/Dockerfile.dev
+    volumes:
+      - .:/app
+      - /app/tmp
+    environment:
+      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-dev-internal-token}
+      - DB_DSN=postgres://postgres:postgres@productservice-db:5432/products?sslmode=disable
+    depends_on:
+      productservice-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      ecommerce_default:
+        aliases:
+          - productservice_app
+
+  cart-redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - ecommerce_default
+
+  cartservice:
+    build:
+      context: .
+      dockerfile: services/CartService/docker/Dockerfile.dev
+    volumes:
+      - .:/app
+      - /app/tmp
+    environment:
+      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-dev-internal-token}
+      - REDIS_HOST=cart-redis
+      - PRODUCT_SERVICE_GRPC_ADDR=productservice_app:50053
+      - USER_SERVICE_GRPC_ADDR=userservice_app:50051
+    depends_on:
+      cart-redis:
+        condition: service_healthy
+    networks:
+      ecommerce_default:
+        aliases:
+          - cartservice_app
+
+  orderservice-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: orders
+    volumes:
+      - orderservice_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - ecommerce_default
+
+  orderservice:
+    build:
+      context: .
+      dockerfile: services/OrderService/docker/Dockerfile.dev
+    volumes:
+      - .:/app
+      - /app/tmp
+    environment:
+      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-dev-internal-token}
+      - DB_DSN=postgres://postgres:postgres@orderservice-db:5432/orders?sslmode=disable
+      - PRODUCT_SERVICE_GRPC_ADDR=productservice_app:50053
+      - USER_SERVICE_GRPC_ADDR=userservice_app:50051
+    depends_on:
+      orderservice-db:
+        condition: service_healthy
+    networks:
+      ecommerce_default:
+        aliases:
+          - orderservice_app
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/ApiGateway/docker/Dockerfile.dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - /app/tmp
+    environment:
+      - APP_PORT=8080
+      - APP_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - INTERNAL_AUTH_TOKEN=${INTERNAL_AUTH_TOKEN:-dev-internal-token}
+      - ALLOWED_ORIGINS=*
+      - ALLOWED_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
+      - ALLOWED_HEADERS=Accept,Authorization,Content-Type,X-Request-ID
+      - RATE_LIMIT_REQUESTS=100
+      - RATE_LIMIT_WINDOW_SECONDS=60
+      - USER_SERVICE_URL=userservice_app:50051
+      - PRODUCT_SERVICE_URL=productservice_app:50053
+      - CART_SERVICE_URL=cartservice_app:50057
+      - ORDER_SERVICE_URL=orderservice_app:50055
+      - REQUEST_TIMEOUT_SECONDS=30
+      - IDLE_TIMEOUT_SECONDS=120
+      - READ_TIMEOUT_SECONDS=15
+      - WRITE_TIMEOUT_SECONDS=15
+      - SERVICE_NAME=api-gateway
+    depends_on:
+      - userservice
+      - productservice
+      - cartservice
+      - orderservice
+    networks:
+      - ecommerce_default
+    restart: unless-stopped
+
+volumes:
+  userservice_db_data:
+  productservice_db_data:
+  orderservice_db_data:
+
+networks:
+  ecommerce_default:
+    driver: bridge

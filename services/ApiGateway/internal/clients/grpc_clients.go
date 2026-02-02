@@ -29,13 +29,14 @@ func NewServiceClients(
 	cartServiceURL,
 	orderServiceURL,
 	internalAuthToken string,
+	cbConfig grpcmiddleware.CircuitBreakerConfig,
 ) (*ServiceClients, error) {
 	clients := &ServiceClients{
 		conns: make([]*grpc.ClientConn, 0),
 	}
 
 	// Connect to User Service
-	userConn, err := createGRPCConnection(userServiceURL, internalAuthToken)
+	userConn, err := createGRPCConnection(userServiceURL, internalAuthToken, cbConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to user service: %w", err)
 	}
@@ -44,7 +45,7 @@ func NewServiceClients(
 	logger.Infof("Connected to User Service at %s", userServiceURL)
 
 	// Connect to Product Service
-	productConn, err := createGRPCConnection(productServiceURL, internalAuthToken)
+	productConn, err := createGRPCConnection(productServiceURL, internalAuthToken, cbConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to product service: %w", err)
 	}
@@ -53,7 +54,7 @@ func NewServiceClients(
 	logger.Infof("Connected to Product Service at %s", productServiceURL)
 
 	// Connect to Cart Service
-	cartConn, err := createGRPCConnection(cartServiceURL, internalAuthToken)
+	cartConn, err := createGRPCConnection(cartServiceURL, internalAuthToken, cbConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to cart service: %w", err)
 	}
@@ -62,7 +63,7 @@ func NewServiceClients(
 	logger.Infof("Connected to Cart Service at %s", cartServiceURL)
 
 	// Connect to Order Service
-	orderConn, err := createGRPCConnection(orderServiceURL, internalAuthToken)
+	orderConn, err := createGRPCConnection(orderServiceURL, internalAuthToken, cbConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to order service: %w", err)
 	}
@@ -74,10 +75,13 @@ func NewServiceClients(
 }
 
 // createGRPCConnection creates a new gRPC connection with retry logic
-func createGRPCConnection(target, internalAuthToken string) (*grpc.ClientConn, error) {
+func createGRPCConnection(target, internalAuthToken string, cbConfig grpcmiddleware.CircuitBreakerConfig) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(grpcmiddleware.InternalAuthUnaryClientInterceptor(internalAuthToken)),
+		grpc.WithChainUnaryInterceptor(
+			grpcmiddleware.InternalAuthUnaryClientInterceptor(internalAuthToken),
+			grpcmiddleware.CircuitBreakerUnaryClientInterceptor("api-gateway->"+target, cbConfig),
+		),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(10*1024*1024), // 10MB
 			grpc.MaxCallSendMsgSize(10*1024*1024), // 10MB

@@ -1,0 +1,29 @@
+
+flowchart LR
+  Client["Clients (Web/Mobile)"] -->|"HTTPS/REST"| APIGW["API Gateway"]
+  subgraph Services
+    direction TB
+    UserSvc["UserService"]
+    ProductSvc["ProductService"]
+    CartSvc["CartService"]
+    OrderSvc["OrderService"]
+  end
+  subgraph Datastores
+    direction TB
+    UserDB[("Postgres: Users")]
+    ProductDB[("Postgres: Products")]
+    OrderDB[("Postgres: Orders")]
+    CartCache[("Redis: Cart")]
+  end
+  APIGW -->|"gRPC"| UserSvc
+  APIGW -->|"gRPC"| ProductSvc
+  APIGW -->|"gRPC"| CartSvc
+  APIGW -->|"gRPC"| OrderSvc
+  CartSvc -->|"gRPC: Validate User"| UserSvc
+  CartSvc -->|"gRPC: Validate Product"| ProductSvc
+  OrderSvc -->|"gRPC: Validate User"| UserSvc
+  OrderSvc -->|"gRPC: Validate Product"| ProductSvc
+  UserSvc --> UserDB
+  ProductSvc --> ProductDB
+  OrderSvc --> OrderDB
+  CartSvc --> CartCache
